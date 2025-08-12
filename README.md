@@ -110,18 +110,106 @@ Never commit real secrets.
 Create a `profiles` table and optional trigger. Minimal schema:
 
 ```sql
-create table if not exists public.profiles (
-  id uuid primary key references auth.users(id) on delete cascade,
-  role text not null default 'Free',
-  stripe_customer_id text,
-  pro_activated_at timestamptz,
-  last_stripe_payment_at timestamptz,
-  stripe_subscription_id text
-);
 
+-- 0) SAFETY: run inside a transaction
+begin;
+
+-- 1) Ensure table exists (yours looks good)
+
+-- 2) Auto-create a profile when a user signs up
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+as $$
+begin
+  insert into public.profiles (id, full_name, avatar_url)
+  values (
+    new.id,
+    coalesce(
+      new.raw_user_meta_data->>'full_name',
+      new.raw_user_meta_data->>'name',
+      new.email
+    ),
+    new.raw_user_meta_data->>'avatar_url'
+  )
+  on conflict (id) do nothing;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+after insert on auth.users
+for each row execute function public.handle_new_user();
+
+-- 3) Keep name/avatar in sync if provider metadata changes (optional but useful)
+create or replace function public.handle_user_updated()
+returns trigger
+language plpgsql
+security definer
+as $$
+begin
+  update public.profiles p
+     set full_name = coalesce(
+           new.raw_user_meta_data->>'full_name',
+           new.raw_user_meta_data->>'name',
+           p.full_name
+         ),
+         avatar_url = coalesce(
+           new.raw_user_meta_data->>'avatar_url',
+           p.avatar_url
+         ),
+         updated_at = now()
+   where p.id = new.id;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_updated on auth.users;
+create trigger on_auth_user_updated
+after update of raw_user_meta_data on auth.users
+for each row
+when (old.raw_user_meta_data is distinct from new.raw_user_meta_data)
+execute function public.handle_user_updated();
+
+-- 4) Backfill for existing users without a profile
+insert into public.profiles (id, full_name, avatar_url)
+select u.id,
+       coalesce(u.raw_user_meta_data->>'full_name',
+                u.raw_user_meta_data->>'name',
+                u.email),
+       u.raw_user_meta_data->>'avatar_url'
+from auth.users u
+left join public.profiles p on p.id = u.id
+where p.id is null;
+
+-- 5) (Recommended) Enable RLS with sane policies
 alter table public.profiles enable row level security;
-create policy "Profiles are readable by owners" on public.profiles
-  for select using (auth.uid() = id);
+
+-- Users can read their own profile
+drop policy if exists "Read own profile" on public.profiles;
+create policy "Read own profile"
+on public.profiles
+for select
+to authenticated
+using (id = auth.uid());
+
+-- Users can update their own profile (but not their role)
+drop policy if exists "Update own profile" on public.profiles;
+create policy "Update own profile"
+on public.profiles
+for update
+to authenticated
+using (id = auth.uid())
+with check (id = auth.uid());
+
+-- Optional: prevent direct updates to role by normal users
+revoke update (role) on public.profiles from authenticated;
+
+commit;
 ```
 
 On sign‑in we ensure a Stripe customer exists and update `profiles` in `app/auth/callback/route.ts`.
