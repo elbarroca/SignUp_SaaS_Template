@@ -112,9 +112,9 @@ export function HeroSection({ user }: { user: User | null }) {
                                     <AuthAwareButton
                                         className="rounded-xl px-5 text-base"
                                         authenticatedHref="/dashboard"
-                                        unauthenticatedHref="#waitlist"
+                                        unauthenticatedHref="/auth/login"
                                     >
-                                        <span className="text-nowrap">Join the waitlist</span>
+                                        <span className="text-nowrap">Start Building</span>
                                     </AuthAwareButton>
                                 </AnimatedGroup>
                             </div>
@@ -258,7 +258,7 @@ const HeroHeader = ({ user }: { user: User | null }) => {
                 initial={{ opacity: 0, y: -16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ type: 'spring', stiffness: 140, damping: 20 }}
-                data-state={menuState && 'active'}
+                data-state={menuState ? 'active' : undefined}
                 className={cn(
                     'fixed inset-x-0 top-0 z-20 px-2 group',
                     'transition-all duration-300'
@@ -266,6 +266,8 @@ const HeroHeader = ({ user }: { user: User | null }) => {
                 <div className={cn(
                     'mx-auto mt-2 max-w-7xl px-6 transition-all duration-500 lg:px-12',
                     'bg-transparent border-transparent',
+                    // Ensure solid background when mobile menu is active
+                    'group-data-[state=active]:bg-background/80 group-data-[state=active]:border group-data-[state=active]:backdrop-blur-lg group-data-[state=active]:rounded-2xl',
                     isScrolled && 'bg-background/50 max-w-4xl rounded-2xl border backdrop-blur-lg lg:px-5'
                 )}>
                     <div className="relative flex flex-wrap items-center justify-between gap-6 py-3 lg:gap-0 lg:py-4">
@@ -302,7 +304,7 @@ const HeroHeader = ({ user }: { user: User | null }) => {
                             </AnimatedGroup>
                         </div>
 
-                        <div className="bg-transparent group-data-[state=active]:block lg:group-data-[state=active]:flex mb-6 hidden w-full flex-wrap items-center justify-end space-y-8 rounded-3xl border-0 p-6 shadow-none md:flex-nowrap lg:m-0 lg:flex lg:w-fit lg:gap-6 lg:space-y-0 lg:bg-transparent lg:p-0 dark:shadow-none">
+                        <div className="bg-transparent group-data-[state=active]:block lg:group-data-[state=active]:flex mb-6 hidden w-full flex-wrap items-center justify-end space-y-8 rounded-3xl border-0 p-6 shadow-none md:flex-nowrap lg:m-0 lg:flex lg:w-fit lg:gap-6 lg:space-y-0 lg:bg-transparent lg:p-0 dark:shadow-none group-data-[state=active]:bg-background/90 group-data-[state=active]:backdrop-blur-lg group-data-[state=active]:border">
                             <div className="lg:hidden">
                                 <AnimatedGroup preset="slide">
                                     <ul className="space-y-6 text-base">
@@ -326,17 +328,17 @@ const HeroHeader = ({ user }: { user: User | null }) => {
                                             <AuthAwareButton
                                             className={cn("w-full", isScrolled ? 'lg:inline-flex' : 'hidden lg:inline-flex')}
                                             authenticatedHref="/dashboard"
-                                            unauthenticatedHref="#waitlist"
+                                            unauthenticatedHref="/auth/login"
                                             >
-                                                <span>Join the waitlist</span>
+                                                <span>Get Started</span>
                                             </AuthAwareButton>
                                         ) : (
                                             <AuthAwareButton
                                                 className={cn("w-full", isScrolled ? 'lg:inline-flex' : 'hidden lg:inline-flex')}
                                                 authenticatedHref="/dashboard"
-                                                unauthenticatedHref="#waitlist"
+                                                unauthenticatedHref="/auth/login"
                                             >
-                                                <span>Join the waitlist</span>
+                                                <span>Get Started</span>
                                             </AuthAwareButton>
                                         )}
                                     </div>
